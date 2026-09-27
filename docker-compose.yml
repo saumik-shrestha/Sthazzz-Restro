@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nepal_bhoj
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nepal_bhoj"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://postgres:postgres@db:5432/nepal_bhoj?sslmode=disable
+      KHALTI_SECRET_KEY: ${KHALTI_SECRET_KEY:-}
+      KHALTI_BASE_URL: https://dev.khalti.com/api/v2
+      FRONTEND_URL: http://localhost:5173
+      WEBSITE_URL: http://localhost:5173
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["8080:8080"]
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    depends_on: [backend]
+volumes:
+  pgdata:
